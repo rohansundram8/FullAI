@@ -27,6 +27,15 @@ export default function BookingPage() {
     year: "",
     plateNumber: "",
   })
+  const [contact, setContact] = useState({
+    name: "",
+    phone: "",
+    email: "",
+    notes: "",
+  })
+  const [submitting, setSubmitting] = useState(false)
+  const [success, setSuccess] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handleNextStep = () => {
     setStep(step + 1)
@@ -44,6 +53,51 @@ export default function BookingPage() {
       ...carDetails,
       [name]: value,
     })
+  }
+
+  const handleContactChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    setContact({
+      ...contact,
+      [name]: value,
+    })
+  }
+
+  const handleBookingSubmit = async () => {
+    setSubmitting(true)
+    setError(null)
+    setSuccess(false)
+    try {
+      const res = await fetch("/api/booking", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          date: date ? date.toISOString().split("T")[0] : "",
+          time: selectedTime,
+          location: selectedLocation,
+          service: selectedService,
+          carDetails,
+          ...contact,
+        }),
+      })
+      const result = await res.json()
+      if (result.success) {
+        setSuccess(true)
+        setStep(1)
+        setDate(undefined)
+        setSelectedLocation("")
+        setSelectedService("")
+        setSelectedTime("")
+        setCarDetails({ brand: "", model: "", year: "", plateNumber: "" })
+        setContact({ name: "", phone: "", email: "", notes: "" })
+      } else {
+        setError(result.message || "Booking failed.")
+      }
+    } catch (e) {
+      setError("Booking failed. Please try again.")
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const locations = [
@@ -94,6 +148,17 @@ export default function BookingPage() {
           <h1 className="text-3xl font-bold mb-2">Book Your Appointment</h1>
           <p className="text-gray-600">Schedule your car service at your preferred location and time</p>
         </div>
+
+        {success && (
+          <div className="mb-6 p-4 bg-green-100 text-green-700 rounded">
+            Booking successful! We have received your appointment.
+          </div>
+        )}
+        {error && (
+          <div className="mb-6 p-4 bg-red-100 text-red-700 rounded">
+            {error}
+          </div>
+        )}
 
         <div className="mb-8">
           <div className="flex justify-between items-center">
@@ -330,19 +395,44 @@ export default function BookingPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="name">Full Name</Label>
-                    <Input id="name" placeholder="Your full name" />
+                    <Input
+                      id="name"
+                      name="name"
+                      value={contact.name}
+                      onChange={handleContactChange}
+                      placeholder="Your full name"
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="phone">Phone Number</Label>
-                    <Input id="phone" placeholder="e.g. 012-345-6789" />
+                    <Input
+                      id="phone"
+                      name="phone"
+                      value={contact.phone}
+                      onChange={handleContactChange}
+                      placeholder="e.g. 012-345-6789"
+                    />
                   </div>
                   <div className="space-y-2 md:col-span-2">
                     <Label htmlFor="email">Email Address</Label>
-                    <Input id="email" type="email" placeholder="your.email@example.com" />
+                    <Input
+                      id="email"
+                      name="email"
+                      type="email"
+                      value={contact.email}
+                      onChange={handleContactChange}
+                      placeholder="your.email@example.com"
+                    />
                   </div>
                   <div className="space-y-2 md:col-span-2">
                     <Label htmlFor="notes">Special Requests or Notes (Optional)</Label>
-                    <Input id="notes" placeholder="Any special requests or additional information" />
+                    <Input
+                      id="notes"
+                      name="notes"
+                      value={contact.notes}
+                      onChange={handleContactChange}
+                      placeholder="Any special requests or additional information"
+                    />
                   </div>
                 </div>
               </div>
@@ -351,7 +441,13 @@ export default function BookingPage() {
               <Button variant="outline" onClick={handlePrevStep} className="w-full sm:w-auto">
                 Back
               </Button>
-              <Button className="w-full sm:w-auto">Confirm Booking</Button>
+              <Button
+                className="w-full sm:w-auto"
+                onClick={handleBookingSubmit}
+                disabled={submitting}
+              >
+                {submitting ? "Booking..." : "Confirm Booking"}
+              </Button>
             </CardFooter>
           </Card>
         )}
